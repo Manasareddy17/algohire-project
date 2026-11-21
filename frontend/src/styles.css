@@ -87,3 +87,33 @@ input { padding: 0.5rem; border: 1px solid var(--line); border-radius: 6px; font
 .bubble p { margin: 0 0 0.3rem; }
 .bubble span { display: block; margin-top: 0.3rem; }
 .welcome ul { line-height: 1.7; }
+
+/* Small pop-up message (top-right) */
+.toast {
+  position: fixed; top: 1rem; right: 1rem; z-index: 50;
+  display: flex; align-items: flex-start; gap: 0.6rem;
+  max-width: 380px; padding: 0.75rem 0.9rem; border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15); font-size: 0.9rem;
+  animation: slide-in 0.2s ease-out;
+}
+.toast p { margin: 0; flex: 1; }
+.toast-ok { background: #e3f4ea; color: var(--ok); border: 1px solid #a7d8bd; }
+.toast-error { background: #fde7e5; color: var(--bad); border: 1px solid #f2b8b3; }
+.toast-close { background: none; color: inherit; padding: 0 0.25rem; font-size: 1.2rem; line-height: 1; }
+@keyframes slide-in { from { transform: translateY(-8px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* Upload errors pop-up */
+.dialog-backdrop {
+  position: fixed; inset: 0; z-index: 40; background: rgba(20, 28, 45, 0.45);
+  display: flex; align-items: center; justify-content: center; padding: 1rem;
+}
+.dialog {
+  background: var(--card); border-radius: 10px; width: min(640px, 100%); max-height: 80vh;
+  display: flex; flex-direction: column; padding: 1.1rem 1.25rem; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+}
+.dialog-header { display: flex; justify-content: space-between; align-items: center; color: var(--bad); }
+.dialog-header h2 { margin: 0; font-size: 1.05rem; }
+.dialog-header .toast-close { color: var(--muted); }
+.dialog-body { overflow-y: auto; margin: 0.5rem 0; border: 1px solid var(--line); border-radius: 6px; }
+.dialog-body table.errors { margin: 0; }
+.dialog-footer { display: flex; justify-content: flex-end; }

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api, ApiError, formatDate, post, STATUS_LABEL, User } from '../api';
+import { Toast, ToastMessage } from '../components/Toast';
+import { RowError, UploadErrorsDialog } from '../components/UploadErrorsDialog';
 
 const STAGE_ROLE: Record<string, User['role']> = { DISTRICT: 'DISTRICT_OFFICER', QUALITY: 'QUALITY', STATE: 'STATE' };
 
@@ -8,8 +10,8 @@ export function BatchDetailPage({ user, version }: { user: User; version: number
   const { id } = useParams();
   const [batch, setBatch] = useState<any>(null);
   const [timeline, setTimeline] = useState<any[]>([]);
-  const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
-  const [rowErrors, setRowErrors] = useState<{ row: number; column: string; message: string }[]>([]);
+  const [message, setMessage] = useState<ToastMessage | null>(null);
+  const [rowErrors, setRowErrors] = useState<RowError[]>([]);
   const [reason, setReason] = useState('');
 
   const load = useCallback(async () => {
@@ -35,10 +37,14 @@ export function BatchDetailPage({ user, version }: { user: User; version: number
       await load();
     } catch (err) {
       const apiError = err as ApiError;
-      setMessage({ kind: 'error', text: apiError.message });
-      setRowErrors((apiError.body?.errors as any[]) ?? []);
+      const errors = apiError.body?.errors ?? [];
+      // A list of problems opens the pop-up dialog; a single error is a small toast.
+      if (errors.length > 0) setRowErrors(errors);
+      else setMessage({ kind: 'error', text: apiError.message });
     }
   }
+
+  const closeToast = useCallback(() => setMessage(null), []);
 
   async function upload(file: File) {
     const form = new FormData();
@@ -78,29 +84,8 @@ export function BatchDetailPage({ user, version }: { user: User; version: number
           </p>
         )}
 
-        {message && <p className={message.kind === 'ok' ? 'success' : 'error'}>{message.text}</p>}
-        {rowErrors.length > 0 && (
-          <p className="muted">
-            {rowErrors.length} problem(s) found. Fix these rows in your spreadsheet and upload it again
-            (row numbers match Excel, header = row 1).
-          </p>
-        )}
-        {rowErrors.length > 0 && (
-          <table className="errors">
-            <thead>
-              <tr><th>Row</th><th>Column</th><th>Problem</th></tr>
-            </thead>
-            <tbody>
-              {rowErrors.map((error, index) => (
-                <tr key={index}>
-                  <td>{error.row ?? '—'}</td>
-                  <td>{error.column ?? (error as any).field}</td>
-                  <td>{error.message}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+        <Toast message={message} onClose={closeToast} />
+        <UploadErrorsDialog errors={rowErrors} onClose={() => setRowErrors([])} />
 
         {editable && (
           <div className="actions">
