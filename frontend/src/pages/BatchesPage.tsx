@@ -1,6 +1,7 @@
-import { FormEvent, useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { FormEvent, useCallback, useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { api, ApiError, formatDate, post, STATUS_LABEL, User } from '../api';
+import { Toast, ToastMessage } from '../components/Toast';
 
 interface BatchRow {
   id: string;
@@ -19,6 +20,16 @@ export function BatchesPage({ user, version }: { user: User; version: number }) 
   const [batches, setBatches] = useState<BatchRow[]>([]);
   const [pending, setPending] = useState<BatchRow[]>([]);
   const [stuck, setStuck] = useState<BatchRow[]>([]);
+  // Message handed over by the batch page after a review (see BatchDetailPage.review).
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [toast, setToast] = useState<ToastMessage | null>((location.state as { toast?: ToastMessage })?.toast ?? null);
+  const closeToast = useCallback(() => setToast(null), []);
+
+  useEffect(() => {
+    // Clear it from history so a page refresh does not show it again.
+    if (location.state) navigate(location.pathname, { replace: true, state: null });
+  }, [location, navigate]);
 
   useEffect(() => {
     api<BatchRow[]>('/api/batches').then(setBatches);
@@ -28,6 +39,7 @@ export function BatchesPage({ user, version }: { user: User; version: number }) 
 
   return (
     <>
+      <Toast message={toast} onClose={closeToast} />
       {user.role === 'CENTRE' && <CreateBatch />}
       {user.role === 'STATE' && stuck.length > 0 && (
         <BatchTable title={`Stuck batches (${stuck.length})`} rows={stuck} highlight="warning" />

@@ -1,13 +1,40 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { api, ApiError, formatDate, post, STATUS_LABEL, User } from '../api';
 import { Toast, ToastMessage } from '../components/Toast';
 import { RowError, UploadErrorsDialog } from '../components/UploadErrorsDialog';
 
 const STAGE_ROLE: Record<string, User['role']> = { DISTRICT: 'DISTRICT_OFFICER', QUALITY: 'QUALITY', STATE: 'STATE' };
 
+type Decision = 'APPROVE' | 'SEND_BACK' | 'REJECT';
+interface ReviewResult {
+  status: string;
+  count: number;
+  required: number;
+}
+
+/** Turns the API result into a sentence that says what really happened to the batch. */
+function describeReview(decision: Decision, result: ReviewResult): string {
+  if (decision === 'SEND_BACK') return 'Sent back to the training centre with your reason.';
+
+  const waiting = result.required - result.count;
+  if (decision === 'REJECT') {
+    return waiting > 0
+      ? `Your rejection is recorded (${result.count} of ${result.required}). It needs ${waiting} more officer to agree.`
+      : 'Batch rejected. The training centre has been notified.';
+  }
+  if (waiting > 0) {
+    return `Your approval is recorded (${result.count} of ${result.required}). Waiting for ${waiting} more district officer.`;
+  }
+  if (result.status === 'APPROVED') {
+    return 'Final approval given. Certificates are being issued and sent on WhatsApp.';
+  }
+  return `Approved. The batch has moved to ${STATUS_LABEL[result.status]}.`;
+}
+
 export function BatchDetailPage({ user, version }: { user: User; version: number }) {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [batch, setBatch] = useState<any>(null);
   const [timeline, setTimeline] = useState<any[]>([]);
   const [message, setMessage] = useState<ToastMessage | null>(null);
@@ -45,6 +72,24 @@ export function BatchDetailPage({ user, version }: { user: User; version: number
   }
 
   const closeToast = useCallback(() => setMessage(null), []);
+
+  /**
+   * Reviewer action. On success the batch is no longer this reviewer's to act on, so we go
+   * back to their "Waiting for you" list and show what actually happened as a pop-up.
+   */
+  async function review(decision: Decision) {
+    setMessage(null);
+    try {
+      const result = await post<{ data: ReviewResult }>(`/api/batches/${id}/reviews`, {
+        decision,
+        reason: reason.trim() || undefined,
+        revision: batch.revision,
+      });
+      navigate('/', { state: { toast: { kind: 'ok', text: `${batch.code}: ${describeReview(decision, result.data)}` } } });
+    } catch (err) {
+      setMessage({ kind: 'error', text: (err as ApiError).message });
+    }
+  }
 
   async function upload(file: File) {
     const form = new FormData();
@@ -115,15 +160,9 @@ export function BatchDetailPage({ user, version }: { user: User; version: number
               onChange={(e) => setReason(e.target.value)}
               placeholder="Reason (required to send back or reject)"
             />
-            <button onClick={() => run(() => post(`/api/batches/${id}/reviews`, { decision: 'APPROVE', revision: batch.revision }))}>
-              Approve
-            </button>
-            <button className="secondary" onClick={() => run(() => post(`/api/batches/${id}/reviews`, { decision: 'SEND_BACK', reason, revision: batch.revision }))}>
-              Send back
-            </button>
-            <button className="danger" onClick={() => run(() => post(`/api/batches/${id}/reviews`, { decision: 'REJECT', reason, revision: batch.revision }))}>
-              Reject
-            </button>
+            <button onClick={() => review('APPROVE')}>Approve</button>
+            <button className="secondary" onClick={() => review('SEND_BACK')}>Send back</button>
+            <button className="danger" onClick={() => review('REJECT')}>Reject</button>
           </div>
         )}
         {myStageActive && alreadyReviewed && <p className="muted">You have reviewed this revision.</p>}
