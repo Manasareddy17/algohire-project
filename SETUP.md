@@ -25,6 +25,8 @@ Open **http://localhost:8080**.
 
 ## 2. Try the flows
 
+For a complete step-by-step script with the expected result of every case, see [TESTING.md](TESTING.md).
+
 Pick a person in the top-right "Acting as" menu.
 
 | Flow | Steps |
@@ -42,10 +44,10 @@ Pick a person in the top-right "Acting as" menu.
 ## 3. Run the tests
 
 ```bash
-docker compose --profile test run --rm test
+docker compose --profile test run --rm --build test
 ```
 
-Runs migrations on a separate `certiflow_test` database and all Jest suites (unit + integration). Expected: `Tests: 127 passed`.
+Runs migrations on a separate `certiflow_test` database and all Jest suites (unit + integration). Expected: `Tests: 136 passed`.
 
 ## 4. Developing without Docker for the app (optional)
 

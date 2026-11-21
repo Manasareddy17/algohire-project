@@ -2,10 +2,6 @@ import { CertificateStatus, DeliveryStatus, Prisma } from '@prisma/client';
 import { EntityManager, prisma } from './prisma.service';
 
 export class CertificateDatabaseService {
-  fetchCertificateById(id: string, manager: EntityManager = prisma) {
-    return manager.certificate.findUnique({ where: { id } });
-  }
-
   /** Certificate + the centre/district it belongs to (for permission checks and realtime routing). */
   fetchCertificateWithScope(id: string, manager: EntityManager = prisma) {
     return manager.certificate.findUnique({

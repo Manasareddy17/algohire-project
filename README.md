@@ -3,7 +3,8 @@
 Training centres upload passed batches → district officers, the quality team and the state office approve → every candidate gets a certificate PDF on WhatsApp → anyone can check a certificate is genuine.
 
 - **Run it:** `docker compose up --build` → open http://localhost:8080 (full guide: [SETUP.md](SETUP.md))
-- **Tests:** `docker compose --profile test run --rm test`
+- **Tests:** `docker compose --profile test run --rm --build test`
+- **Step-by-step test script for reviewers:** [TESTING.md](TESTING.md)
 - **Production plan:** [DEPLOYMENT.md](DEPLOYMENT.md)
 
 ---
@@ -159,13 +160,13 @@ await this.dataSource.transaction(async (manager) => {
 ## 4. Tests
 
 ```bash
-docker compose --profile test run --rm test      # everything, in containers
+docker compose --profile test run --rm --build test      # everything, in containers
 # or locally: cd backend && npm test              (needs postgres + redis from docker compose)
 ```
 
 - **Unit:** workflow rules, spreadsheet validation, download tokens, masking, certificate numbers.
 - **Integration** (real Postgres + Redis): all six moments and every "must never happen" rule.
-- 127 tests, all passing.
+- 136 tests, all passing.
 
 ---
 
