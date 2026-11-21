@@ -41,6 +41,19 @@ export class BatchWorkflowService {
     return STAGE_BY_STATUS[status] ?? null;
   }
 
+  /** The review stage a role works at, or null for roles that never review. */
+  stageForRole(role: Role): ReviewStage | null {
+    const entry = Object.entries(ROLE_BY_STAGE).find(([, stageRole]) => stageRole === role);
+    return entry ? (entry[0] as ReviewStage) : null;
+  }
+
+  /** True when `role`'s review stage comes before `currentStage`, i.e. their turn is over. */
+  hasStagePassedFor(role: Role, currentStage: ReviewStage): boolean {
+    const order = [ReviewStage.DISTRICT, ReviewStage.QUALITY, ReviewStage.STATE];
+    const roleStage = this.stageForRole(role);
+    return roleStage !== null && order.indexOf(roleStage) < order.indexOf(currentStage);
+  }
+
   /** How many matching decisions a stage needs. Only the district stage needs a quorum. */
   decisionsRequired(stage: ReviewStage): number {
     return stage === ReviewStage.DISTRICT ? this.options.districtApprovalsRequired : 1;

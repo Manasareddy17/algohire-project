@@ -71,6 +71,11 @@ export class ReviewBatchHandler implements ICommandHandler<ReviewBatchCommand> {
         if (batch.revision !== revision) {
           throw new ConflictException('The batch was changed since you opened it. Reload and review again.');
         }
+        // A reviewer whose stage is already over (e.g. the 3rd officer clicking after the quorum
+        // was reached) gets "already moved on", not "forbidden".
+        if (this.batchWorkflowService.hasStagePassedFor(user.role, stage)) {
+          throw new ConflictException(`This batch has already moved past your review stage (now: ${batch.status})`);
+        }
 
         // 3. Is this user allowed to act at this stage (right role, right district)?
         this.batchWorkflowService.assertCanReview(user, batch, stage);
