@@ -1,0 +1,89 @@
+:root {
+  --bg: #f4f6fa;
+  --card: #ffffff;
+  --text: #1d2433;
+  --muted: #6b7385;
+  --line: #e3e7ef;
+  --primary: #1f4e79;
+  --ok: #1e7b4c;
+  --warn: #b26a00;
+  --bad: #b3261e;
+  font-family: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  color: var(--text);
+  background: var(--bg);
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; }
+a { color: var(--primary); }
+h1 { font-size: 1.5rem; margin: 0 0 0.5rem; }
+h2 { font-size: 1.1rem; margin: 0 0 0.75rem; }
+
+.topbar {
+  display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;
+  padding: 0.75rem 1.5rem; background: var(--primary); color: #fff;
+}
+.brand { color: #fff; font-weight: 700; font-size: 1.2rem; text-decoration: none; }
+.brand span { font-weight: 400; font-size: 0.8rem; opacity: 0.8; margin-left: 0.4rem; }
+.topbar nav { display: flex; gap: 1rem; flex: 1; }
+.topbar nav a { color: #dbe6f3; text-decoration: none; }
+.topbar nav a.active { color: #fff; border-bottom: 2px solid #fff; }
+.switcher { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; }
+.switcher select { padding: 0.35rem; border-radius: 6px; border: none; }
+
+.live { background: #e7f5ee; color: var(--ok); font-size: 0.8rem; padding: 0.3rem 1.5rem; }
+main { max-width: 1200px; margin: 1.5rem auto; padding: 0 1rem; }
+
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 1.25rem; margin-bottom: 1rem; }
+.card.warning { border-color: #f1c27d; background: #fffaf0; }
+.two-columns { display: grid; grid-template-columns: 3fr 2fr; gap: 1rem; }
+@media (max-width: 900px) { .two-columns { grid-template-columns: 1fr; } }
+
+table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+th, td { text-align: left; padding: 0.45rem 0.5rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; }
+table.errors { margin: 0.5rem 0; background: #fdf0ef; }
+
+button, .file-button {
+  background: var(--primary); color: #fff; border: none; border-radius: 6px;
+  padding: 0.5rem 0.9rem; cursor: pointer; font-size: 0.9rem;
+}
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+button.secondary { background: #5b6b82; }
+button.danger { background: var(--bad); }
+button.small { padding: 0.25rem 0.6rem; font-size: 0.8rem; }
+.file-button input { display: none; }
+
+input { padding: 0.5rem; border: 1px solid var(--line); border-radius: 6px; font-size: 0.9rem; }
+.inline-form { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.actions { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; margin-top: 0.75rem; }
+.reason { flex: 1; min-width: 250px; }
+.search { width: 100%; margin-bottom: 0.75rem; }
+
+.muted { color: var(--muted); font-size: 0.85rem; }
+.error { color: var(--bad); font-weight: 600; }
+.success { color: var(--ok); font-weight: 600; }
+.warning-text { color: var(--warn); font-weight: 600; }
+.title-row { display: flex; gap: 0.75rem; align-items: center; }
+
+.status { display: inline-block; padding: 0.1rem 0.5rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; background: #e8ecf3; margin-right: 0.25rem; }
+.status-APPROVED, .status-ISSUED, .status-SENT { background: #e3f4ea; color: var(--ok); }
+.status-SENT_BACK, .status-PENDING, .status-escalated { background: #fff1db; color: var(--warn); }
+.status-REJECTED, .status-REVOKED, .status-FAILED { background: #fde7e5; color: var(--bad); }
+.status-DISTRICT_REVIEW, .status-QUALITY_REVIEW, .status-STATE_REVIEW { background: #e4edf8; color: var(--primary); }
+
+.timeline { padding-left: 1.2rem; margin: 0; font-size: 0.88rem; }
+.timeline li { margin-bottom: 0.5rem; }
+
+.verify, .phone { max-width: 640px; margin: 0 auto 1rem; }
+.verdict { margin-top: 1rem; padding: 1rem; border-radius: 8px; }
+.verdict.valid { background: #e3f4ea; border: 1px solid #a7d8bd; }
+.verdict.revoked { background: #fde7e5; border: 1px solid #f2b8b3; }
+.verdict dl { display: grid; grid-template-columns: 140px 1fr; gap: 0.3rem; margin: 0; }
+.verdict dt { color: var(--muted); }
+
+.chat { background: #e5ddd5; border-radius: 8px; padding: 1rem; margin-top: 1rem; min-height: 120px; }
+.bubble { background: #dcf8c6; border-radius: 8px; padding: 0.6rem 0.8rem; margin-bottom: 0.6rem; max-width: 85%; }
+.bubble p { margin: 0 0 0.3rem; }
+.bubble span { display: block; margin-top: 0.3rem; }
+.welcome ul { line-height: 1.7; }
