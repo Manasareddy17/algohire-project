@@ -88,6 +88,16 @@ input { padding: 0.5rem; border: 1px solid var(--line); border-radius: 6px; font
 .bubble span { display: block; margin-top: 0.3rem; }
 .welcome ul { line-height: 1.7; }
 
+/* Rejected / sent back banner */
+.banner { border-radius: 8px; padding: 0.8rem 1rem; margin: 0.75rem 0; }
+.banner h3 { margin: 0 0 0.4rem; font-size: 1rem; }
+.banner ul { margin: 0; padding-left: 1.1rem; }
+.banner li { margin-bottom: 0.35rem; }
+.banner-next { margin: 0.5rem 0 0; font-weight: 600; }
+.banner-rejected { background: #fde7e5; border: 1px solid #f2b8b3; color: #7a1a14; }
+.banner-sent-back { background: #fff4e0; border: 1px solid #f1c27d; color: #6b4300; }
+.attention td:first-child a { font-weight: 600; }
+
 /* Small pop-up message (top-right) */
 .toast {
   position: fixed; top: 1rem; right: 1rem; z-index: 50;

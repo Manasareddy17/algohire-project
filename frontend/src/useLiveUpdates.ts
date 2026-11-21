@@ -1,6 +1,12 @@
 import { useEffect, useState } from 'react';
 import { session } from './api';
 
+export interface LiveEvent {
+  type: string;
+  aggregateId: string;
+  payload: { code?: string; status?: string; reason?: string; [key: string]: unknown };
+}
+
 /**
  * Opens one Server-Sent Events stream for the logged-in user. Every time the server
  * reports a change, `version` goes up, and pages that depend on it reload their data.
@@ -8,14 +14,13 @@ import { session } from './api';
  */
 export function useLiveUpdates(userKey: string | undefined) {
   const [version, setVersion] = useState(0);
-  const [lastEvent, setLastEvent] = useState<string | null>(null);
+  const [lastEvent, setLastEvent] = useState<LiveEvent | null>(null);
 
   useEffect(() => {
     if (!userKey || !session.token) return;
     const source = new EventSource(`/api/events?token=${encodeURIComponent(session.token)}`);
     source.addEventListener('update', (message) => {
-      const event = JSON.parse((message as MessageEvent).data);
-      setLastEvent(event.type);
+      setLastEvent(JSON.parse((message as MessageEvent).data));
       setVersion((value) => value + 1);
     });
     return () => source.close();

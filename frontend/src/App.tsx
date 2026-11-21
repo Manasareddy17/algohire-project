@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { Toast, ToastMessage } from './components/Toast';
 import { Link, NavLink, Route, Routes, useNavigate } from 'react-router-dom';
 import { api, post, session, User } from './api';
 import { useLiveUpdates } from './useLiveUpdates';
@@ -30,6 +31,20 @@ export function App() {
   const [demoLoginEnabled, setDemoLoginEnabled] = useState(true);
   const navigate = useNavigate();
   const live = useLiveUpdates(user?.username);
+
+  // Centre: pop up as soon as one of its batches is rejected or sent back, on any page.
+  const [decisionToast, setDecisionToast] = useState<ToastMessage | null>(null);
+  const closeDecisionToast = useCallback(() => setDecisionToast(null), []);
+  useEffect(() => {
+    const event = live.lastEvent;
+    if (user?.role !== 'CENTRE' || !event) return;
+    const reason = event.payload.reason ? `: “${event.payload.reason}”` : '';
+    if (event.type === 'batch.rejected') {
+      setDecisionToast({ kind: 'error', text: `Batch ${event.payload.code} was rejected${reason}` });
+    } else if (event.type === 'batch.sent_back') {
+      setDecisionToast({ kind: 'error', text: `Batch ${event.payload.code} was sent back${reason}. Fix and resubmit.` });
+    }
+  }, [live.lastEvent, user?.role]);
 
   useEffect(() => {
     api<DemoUser[]>('/api/auth/demo-users')
@@ -80,7 +95,8 @@ export function App() {
         )}
       </header>
 
-      {live.lastEvent && <div className="live">● live · last update: {live.lastEvent}</div>}
+      {live.lastEvent && <div className="live">● live · last update: {live.lastEvent.type}</div>}
+      <Toast message={decisionToast} onClose={closeDecisionToast} />
 
       <main>
         <Routes>

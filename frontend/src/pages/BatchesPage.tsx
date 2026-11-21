@@ -11,6 +11,7 @@ interface BatchRow {
   revision: number;
   updatedAt: string;
   escalatedAt: string | null;
+  sendBackReason: string | null;
   waitingMinutes?: number;
   centre: { name: string; district: { name: string } };
   _count: { candidates: number; certificates: number };
@@ -40,6 +41,7 @@ export function BatchesPage({ user, version }: { user: User; version: number }) 
   return (
     <>
       <Toast message={toast} onClose={closeToast} />
+      {user.role === 'CENTRE' && <NeedsAttention batches={batches} />}
       {user.role === 'CENTRE' && <CreateBatch />}
       {user.role === 'STATE' && stuck.length > 0 && (
         <BatchTable title={`Stuck batches (${stuck.length})`} rows={stuck} highlight="warning" />
@@ -49,6 +51,37 @@ export function BatchesPage({ user, version }: { user: User; version: number }) 
       )}
       <BatchTable title="All batches you can see" rows={batches} empty="No batches yet." />
     </>
+  );
+}
+
+/** Centre only: batches that were sent back or rejected, shown first so they are not missed. */
+function NeedsAttention({ batches }: { batches: BatchRow[] }) {
+  const rows = batches.filter((batch) => batch.status === 'SENT_BACK' || batch.status === 'REJECTED');
+  if (rows.length === 0) return null;
+  return (
+    <section className="card warning attention">
+      <h2>Needs your attention ({rows.length})</h2>
+      <table>
+        <thead>
+          <tr><th>Batch</th><th>Course</th><th>Status</th><th>What to do</th><th>Updated</th></tr>
+        </thead>
+        <tbody>
+          {rows.map((batch) => (
+            <tr key={batch.id}>
+              <td><Link to={`/batches/${batch.id}`}>{batch.code}</Link></td>
+              <td>{batch.courseName}</td>
+              <td><span className={`status status-${batch.status}`}>{STATUS_LABEL[batch.status]}</span></td>
+              <td>
+                {batch.status === 'SENT_BACK'
+                  ? <>“{batch.sendBackReason}” · fix the file and resubmit</>
+                  : <>Closed · open it to see who rejected it and why</>}
+              </td>
+              <td className="muted">{formatDate(batch.updatedAt)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
   );
 }
 

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api, ApiError, formatDate, post, STATUS_LABEL, User } from '../api';
+import { DecisionBanner } from '../components/DecisionBanner';
 import { Toast, ToastMessage } from '../components/Toast';
 import { RowError, UploadErrorsDialog } from '../components/UploadErrorsDialog';
 
@@ -121,7 +122,7 @@ export function BatchDetailPage({ user, version }: { user: User; version: number
           {batch.courseName} ({batch.courseCode}) · {batch.centre.name}, {batch.centre.district.name} · revision{' '}
           {batch.revision} · {batch.candidates.length} candidates
         </p>
-        {batch.status === 'SENT_BACK' && <p className="warning-text">Sent back: {batch.sendBackReason}</p>}
+        <DecisionBanner batch={batch} isOwner={isOwner} />
         {batch.stage && (
           <p>
             Waiting for <b>{batch.stage.toLowerCase()}</b> review · approvals this revision: {currentApprovals} /{' '}
