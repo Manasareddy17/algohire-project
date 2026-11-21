@@ -19,6 +19,9 @@ async function bootstrap() {
   const server = createApp(container, realtimeService).listen(config.PORT, () => {
     logger.log(`API listening on port ${config.PORT}`);
   });
+  if (config.DEMO_LOGIN_ENABLED) {
+    logger.warn('DEMO_LOGIN_ENABLED=true: anyone can sign in as any demo user. Never enable this in production.');
+  }
 
   // Stop accepting requests, let in-flight ones finish, then close connections.
   const shutdown = () => {

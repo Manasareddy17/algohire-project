@@ -80,6 +80,12 @@ export function BatchDetailPage({ user, version }: { user: User; version: number
 
         {message && <p className={message.kind === 'ok' ? 'success' : 'error'}>{message.text}</p>}
         {rowErrors.length > 0 && (
+          <p className="muted">
+            {rowErrors.length} problem(s) found. Fix these rows in your spreadsheet and upload it again
+            (row numbers match Excel, header = row 1).
+          </p>
+        )}
+        {rowErrors.length > 0 && (
           <table className="errors">
             <thead>
               <tr><th>Row</th><th>Column</th><th>Problem</th></tr>
@@ -100,7 +106,15 @@ export function BatchDetailPage({ user, version }: { user: User; version: number
           <div className="actions">
             <label className="file-button">
               Upload spreadsheet (.csv / .xlsx)
-              <input type="file" accept=".csv,.xlsx" onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])} />
+              <input
+                type="file"
+                accept=".csv,.xlsx"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = ''; // so picking the same (fixed) file again uploads again
+                  if (file) upload(file);
+                }}
+              />
             </label>
             <button disabled={batch.candidates.length === 0} onClick={() => run(() => post(`/api/batches/${id}/submit`))}>
               {batch.status === 'SENT_BACK' ? 'Resubmit for approval' : 'Submit for approval'}

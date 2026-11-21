@@ -17,6 +17,11 @@ const envSchema = z.object({
   SLA_MINUTES: z.coerce.number().positive().default(2880),
   DELIVERY_MAX_ATTEMPTS: z.coerce.number().int().positive().default(8),
   LOG_LEVEL: z.string().default('info'),
+  // Demo-only "pick a person" login. Off unless explicitly enabled; must stay off in production.
+  DEMO_LOGIN_ENABLED: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((value) => value === 'true'),
 });
 
 export type AppConfig = z.infer<typeof envSchema>;

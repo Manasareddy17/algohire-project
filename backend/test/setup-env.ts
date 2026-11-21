@@ -6,3 +6,4 @@ process.env.JWT_SECRET ??= 'test-jwt-secret-0123456789';
 process.env.DOWNLOAD_TOKEN_SECRET ??= 'test-download-secret-0123456789';
 process.env.CERTIFICATE_STORAGE_DIR ??= './storage/test-certificates';
 process.env.LOG_LEVEL ??= 'silent';
+process.env.DEMO_LOGIN_ENABLED ??= 'true';

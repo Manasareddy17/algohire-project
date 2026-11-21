@@ -47,7 +47,7 @@ Certificate: ISSUED ──state office cancels──▶ REVOKED (verification sa
 | How long is "too long" with an officer? | `SLA_MINUTES` (default 48 h in production, **5 min in the demo**). The batch is marked *Escalated* and shows on the state office's "Stuck batches" list. | Someone senior finds out without chasing. |
 | What can the public see? | Valid / revoked / not found, masked name ("Ra** Ku***"), course, centre, issue date. **Never the phone number.** | Enough for an employer to compare with the paper, useless for scraping personal data. |
 | Who can download a PDF? | Whoever has the **signed link** from the WhatsApp message (HMAC token, 30-day expiry). | No login for candidates, but a stranger cannot guess a link. |
-| Login | Demo login by picking a person (as the brief asks). Production: SSO/OTP in front of the same JWT + role checks. | Reviewers must switch between people instantly. |
+| Login | A password-less "pick a person" login, **only when `DEMO_LOGIN_ENABLED=true`** (set in docker-compose for the demo). It is **off by default**: with the flag off the login routes return 404 and the switcher is hidden. Production uses OTP / state SSO to issue the same JWT. | The brief asks reviewers to switch between people instantly. Keeping it behind a flag means the shortcut can never ship to production by accident, and the permission checks never depended on it. |
 
 ### The moments that must work → where they are handled
 
@@ -141,6 +141,7 @@ await this.dataSource.transaction(async (manager) => {
 
 ### Security
 
+- **Login vs permissions are separate.** The demo person-switcher (`DEMO_LOGIN_ENABLED`, off by default, tested) only decides *who you are*. *What you may do* is enforced on the server for every request, whatever the login method.
 - Identity only from the signed JWT (HS256 pinned); the user is re-loaded from the database on each request. A `reviewerId` in the body is ignored (tested).
 - Role checks on routes **and** fine-grained checks in handlers (own centre, own district, current stage).
 - Batches outside your scope return 404 (no existence leak).
@@ -182,7 +183,7 @@ How I checked it:
 ## 6. Known limitations and next steps
 
 - **WhatsApp idempotency:** the stand-in honours an `Idempotency-Key`. The real Meta Cloud API does not; in production we would use a BSP that supports it, or accept a very rare duplicate when a response is lost (we already never *issue* twice).
-- **Demo login** has no password; production needs SSO/OTP.
+- **Demo login** has no password: in the demo anyone who opens the site can act as any seeded person. It is behind `DEMO_LOGIN_ENABLED` (off by default, on in docker-compose). Production must keep it off and add a real sign-in (OTP to the officer's registered phone or state SSO); everything after login stays the same.
 - PDFs are stored on a shared Docker volume; production uses object storage (see DEPLOYMENT.md).
 - SSE token is passed in the query string (EventSource cannot send headers); production would use a short-lived cookie.
 - No UI to retry a `FAILED` delivery yet (the job can be re-queued from the queue); no pagination on long lists (capped at 200).

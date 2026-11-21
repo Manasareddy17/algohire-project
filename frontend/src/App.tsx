@@ -26,11 +26,15 @@ const ROLE_LABEL: Record<string, string> = {
 export function App() {
   const [user, setUser] = useState<User | null>(null);
   const [demoUsers, setDemoUsers] = useState<DemoUser[]>([]);
+  // false when the server has DEMO_LOGIN_ENABLED=false (production): the person switcher is hidden.
+  const [demoLoginEnabled, setDemoLoginEnabled] = useState(true);
   const navigate = useNavigate();
   const live = useLiveUpdates(user?.username);
 
   useEffect(() => {
-    api<DemoUser[]>('/api/auth/demo-users').then(setDemoUsers).catch(() => setDemoUsers([]));
+    api<DemoUser[]>('/api/auth/demo-users')
+      .then(setDemoUsers)
+      .catch(() => setDemoLoginEnabled(false));
     if (session.token) api<User>('/api/auth/me').then(setUser).catch(() => session.set(null));
   }, []);
 
@@ -58,18 +62,22 @@ export function App() {
           <NavLink to="/verify">Verify a certificate</NavLink>
           <NavLink to="/phone">Candidate phone</NavLink>
         </nav>
-        <label className="switcher">
-          Acting as
-          <select value={user?.username ?? ''} onChange={(event) => switchUser(event.target.value)}>
-            <option value="">— nobody (public) —</option>
-            {demoUsers.map((demo) => (
-              <option key={demo.username} value={demo.username}>
-                {demo.name} · {ROLE_LABEL[demo.role]}
-                {demo.district ? ` · ${demo.district.name}` : ''}
-              </option>
-            ))}
-          </select>
-        </label>
+        {demoLoginEnabled ? (
+          <label className="switcher" title="Demo only: disabled in production (DEMO_LOGIN_ENABLED=false)">
+            Demo · acting as
+            <select value={user?.username ?? ''} onChange={(event) => switchUser(event.target.value)}>
+              <option value="">— nobody (public) —</option>
+              {demoUsers.map((demo) => (
+                <option key={demo.username} value={demo.username}>
+                  {demo.name} · {ROLE_LABEL[demo.role]}
+                  {demo.district ? ` · ${demo.district.name}` : ''}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : (
+          <span className="switcher">{user ? user.name : 'Sign-in via state SSO'}</span>
+        )}
       </header>
 
       {live.lastEvent && <div className="live">● live · last update: {live.lastEvent}</div>}
