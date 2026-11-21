@@ -1,9 +1,14 @@
 import { BatchStatus } from '@prisma/client';
 import { CommandHandler, EventBus, ICommandHandler } from '../../../core/cqrs';
 import { ActionType, AuditAction, Modules } from '../../../core/enums/value.enum';
-import { BadRequestException, ConflictException, NotFoundException } from '../../../core/exceptions';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '../../../core/exceptions';
 import { Logger } from '../../../core/logger/logger';
-import { AuditLogDatabaseService, BatchDatabaseService, DataSource } from '../../../database';
+import { AuditLogDatabaseService, BatchDatabaseService, CandidateDatabaseService, DataSource } from '../../../database';
 import { buildResponse } from '../../../utils/response-messages.util';
 import { BatchSubmittedEvent, toBatchEventPayload } from '../../events/impl/batch.events';
 import { BatchWorkflowService } from '../../services/batch-workflow.service';
@@ -24,6 +29,7 @@ export class SubmitBatchHandler implements ICommandHandler<SubmitBatchCommand> {
   constructor(
     private readonly dataSource: DataSource,
     private readonly batchDatabaseService: BatchDatabaseService,
+    private readonly candidateDatabaseService: CandidateDatabaseService,
     private readonly auditLogDatabaseService: AuditLogDatabaseService,
     private readonly batchWorkflowService: BatchWorkflowService,
     private readonly eventBus: EventBus,
@@ -44,6 +50,32 @@ export class SubmitBatchHandler implements ICommandHandler<SubmitBatchCommand> {
       }
       if (batch._count.candidates === 0) {
         throw new BadRequestException('Upload candidates before submitting');
+      }
+
+      // Same person in two submitted batches of one course = two certificates later. Two drafts
+      // can hold the same people, so check again here. The course-level lock makes two submits
+      // of the same course wait for each other, so both cannot pass this check at once.
+      await manager.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${batch.courseCode}))`;
+      const candidates = await this.candidateDatabaseService.fetchCandidatesByBatch(batchId, manager);
+      const inOtherBatches = await this.candidateDatabaseService.fetchEnrolmentsInOtherActiveBatches(
+        batch.courseCode,
+        candidates.map((candidate) => candidate.enrolmentId),
+        batchId,
+        manager,
+      );
+      if (inOtherBatches.size > 0) {
+        throw new UnprocessableEntityException('Some candidates are already in another batch for this course', {
+          errors: candidates
+            .filter((candidate) => inOtherBatches.has(candidate.enrolmentId))
+            .map((candidate) => {
+              const other = inOtherBatches.get(candidate.enrolmentId)!;
+              return {
+                row: candidate.rowNumber,
+                column: 'enrolment_id',
+                message: `Already in batch ${other.code} (${other.status}) for this course`,
+              };
+            }),
+        });
       }
 
       const revision = batch.status === BatchStatus.SENT_BACK ? batch.revision + 1 : batch.revision;

@@ -62,12 +62,26 @@ export class UploadCandidatesHandler implements ICommandHandler<UploadCandidates
       batch.courseCode,
       candidates.map((candidate) => candidate.enrolmentId),
     );
+    // ...and must not sit in another batch of the same course that is already submitted or approved,
+    // otherwise approving both batches would give them two certificates.
+    const inOtherBatches = await this.candidateDatabaseService.fetchEnrolmentsInOtherActiveBatches(
+      batch.courseCode,
+      candidates.map((candidate) => candidate.enrolmentId),
+      batchId,
+    );
     for (const candidate of candidates) {
+      const otherBatch = inOtherBatches.get(candidate.enrolmentId);
       if (alreadyCertified.has(candidate.enrolmentId)) {
         errors.push({
           row: candidate.rowNumber,
           column: 'enrolment_id',
           message: 'This candidate already has a certificate for this course',
+        });
+      } else if (otherBatch) {
+        errors.push({
+          row: candidate.rowNumber,
+          column: 'enrolment_id',
+          message: `Already in batch ${otherBatch.code} (${otherBatch.status}) for this course`,
         });
       }
     }

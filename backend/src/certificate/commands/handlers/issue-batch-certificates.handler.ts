@@ -50,8 +50,31 @@ export class IssueBatchCertificatesHandler implements ICommandHandler<IssueBatch
     const candidates = await this.candidateDatabaseService.fetchCandidatesByBatch(batchId);
 
     const issued = await this.dataSource.transaction(async (manager) => {
+      // Safety net: anyone who already holds a VALID certificate for this course from another
+      // batch is skipped (upload/submit checks should already have stopped this).
+      const certifiedElsewhere = await this.certificateDatabaseService.fetchValidEnrolmentsElsewhere(
+        batch.courseCode,
+        candidates.map((candidate) => candidate.enrolmentId),
+        batchId,
+        manager,
+      );
+
       const newlyIssuedCandidateIds = new Set<string>();
       for (const candidate of candidates) {
+        if (certifiedElsewhere.has(candidate.enrolmentId)) {
+          await this.auditLogDatabaseService.record(
+            {
+              actor: null,
+              action: AuditAction.CertificateSkippedDuplicate,
+              entityType: 'Batch',
+              entityId: batchId,
+              batchId,
+              metadata: { enrolmentId: candidate.enrolmentId, reason: 'Already holds a valid certificate for this course' },
+            },
+            manager,
+          );
+          continue;
+        }
         const created = await this.certificateDatabaseService.createIfAbsent(
           {
             certificateNo: generateCertificateNo(),
@@ -60,6 +83,7 @@ export class IssueBatchCertificatesHandler implements ICommandHandler<IssueBatch
             candidateName: candidate.name,
             phone: candidate.phone,
             enrolmentId: candidate.enrolmentId,
+            courseCode: batch.courseCode,
             courseName: batch.courseName,
             centreName: batch.centre.name,
           },
@@ -68,11 +92,13 @@ export class IssueBatchCertificatesHandler implements ICommandHandler<IssueBatch
         if (created) newlyIssuedCandidateIds.add(candidate.id);
       }
 
-      // Every candidate must now have exactly one certificate. If not (e.g. a random number clash
-      // was skipped), throw: the whole transaction rolls back and the queue retries the job.
+      // Every other candidate must now have exactly one certificate. If not (a random number clash,
+      // or another batch certified the same person a moment ago), throw: the whole transaction
+      // rolls back and the queue retries; the retry then sees the other certificate and skips.
       const certificates = await this.certificateDatabaseService.fetchCertificatesByBatch(batchId, manager);
-      if (certificates.length !== candidates.length) {
-        throw new Error(`Expected ${candidates.length} certificates, found ${certificates.length}; retrying`);
+      const expected = candidates.length - certifiedElsewhere.size;
+      if (certificates.length !== expected) {
+        throw new Error(`Expected ${expected} certificates, found ${certificates.length}; retrying`);
       }
 
       const newCertificates = certificates.filter((certificate) => newlyIssuedCandidateIds.has(certificate.candidateId));

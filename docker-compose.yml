@@ -13,6 +13,8 @@ x-backend-env: &backend-env
   DISTRICT_APPROVALS_REQUIRED: "2"
   SLA_MINUTES: "5"
   LOG_LEVEL: info
+  # Demo only: lets reviewers switch between the seeded people without a password.
+  DEMO_LOGIN_ENABLED: "true"
 
 services:
   postgres:
@@ -109,6 +111,7 @@ services:
       DATABASE_URL: postgresql://certiflow:certiflow@postgres:5432/certiflow_test?schema=public
       REDIS_URL: redis://redis:6379/1
       CERTIFICATE_STORAGE_DIR: /tmp/certificates
+      LOG_LEVEL: silent
     command: ["sh", "-c", "npx prisma migrate deploy && npx jest --runInBand"]
     depends_on:
       postgres: { condition: service_healthy }

@@ -1,5 +1,6 @@
 import ExcelJS from 'exceljs';
 import { parse } from 'csv-parse/sync';
+import { BadRequestException } from '../../core/exceptions';
 import { MAX_CANDIDATES_PER_BATCH, PASS_MARK } from '../enums';
 
 export interface ParsedCandidate {
@@ -32,7 +33,12 @@ export class CandidateSheetParserService {
     const name = fileName.toLowerCase();
 
     if (name.endsWith('.csv')) {
-      return parse(buffer, { bom: true, skip_empty_lines: true, relax_column_count: true, trim: true });
+      try {
+        // relax_quotes: a stray quote inside a cell (e.g. =HYPERLINK("x")) becomes a row error, not a crash.
+        return parse(buffer, { bom: true, skip_empty_lines: true, relax_column_count: true, relax_quotes: true, trim: true });
+      } catch (err) {
+        throw new BadRequestException(`The CSV file could not be read: ${(err as Error).message}`);
+      }
     }
 
     if (name.endsWith('.xlsx')) {

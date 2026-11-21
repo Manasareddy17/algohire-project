@@ -59,7 +59,14 @@ export function registerBatchModule(deps: BatchModuleDeps) {
       batchWorkflowService,
       candidateSheetParserService,
     ),
-    new SubmitBatchHandler(dataSource, batchDatabaseService, auditLogDatabaseService, batchWorkflowService, eventBus),
+    new SubmitBatchHandler(
+      dataSource,
+      batchDatabaseService,
+      candidateDatabaseService,
+      auditLogDatabaseService,
+      batchWorkflowService,
+      eventBus,
+    ),
     new ReviewBatchHandler(
       dataSource,
       batchDatabaseService,

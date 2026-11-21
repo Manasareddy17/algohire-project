@@ -155,6 +155,7 @@ model Certificate {
   candidateName     String            @map("candidate_name")
   phone             String
   enrolmentId       String            @map("enrolment_id")
+  courseCode        String            @map("course_code")
   courseName        String            @map("course_name")
   centreName        String            @map("centre_name")
   issuedAt          DateTime          @default(now()) @map("issued_at")
@@ -170,6 +171,10 @@ model Certificate {
   lastDeliveryError String?           @map("last_delivery_error")
 
   @@index([batchId])
+  // Also enforced in SQL (migration 20261121070000): a partial unique index
+  //   UNIQUE (enrolment_id, course_code) WHERE status = 'ISSUED'
+  // = one person can hold at most one valid certificate per course. Prisma cannot express
+  // partial indexes, so it lives in the migration only.
   @@map("certificates")
 }
 

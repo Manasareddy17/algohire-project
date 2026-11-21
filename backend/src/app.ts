@@ -13,7 +13,15 @@ import { correlationId } from './middlewares/correlation-id';
 import { errorHandler } from './middlewares/error-handler';
 import { RealtimeService } from './realtime/realtime.service';
 
-export function createApp(container: Container, realtimeService?: RealtimeService) {
+export interface AppOptions {
+  demoLoginEnabled: boolean;
+}
+
+export function createApp(
+  container: Container,
+  realtimeService?: RealtimeService,
+  options: AppOptions = { demoLoginEnabled: config.DEMO_LOGIN_ENABLED },
+) {
   const { commandBus, queryBus, redis, userDatabaseService } = container;
   const jwtService = new JwtService(config.JWT_SECRET);
   const requireLogin = authenticate(jwtService, userDatabaseService);
@@ -31,7 +39,7 @@ export function createApp(container: Container, realtimeService?: RealtimeServic
   });
 
   // Public (no login)
-  app.use('/api/auth', createAuthRouter(jwtService, userDatabaseService));
+  app.use('/api/auth', createAuthRouter(jwtService, userDatabaseService, options.demoLoginEnabled));
   app.use('/api/public', createPublicCertificateRouter(queryBus, redis));
 
   // Staff (login required)
