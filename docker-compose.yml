@@ -1,0 +1,120 @@
+name: certiflow
+
+x-backend-env: &backend-env
+  NODE_ENV: production
+  DATABASE_URL: postgresql://certiflow:certiflow@postgres:5432/certiflow?schema=public
+  REDIS_URL: redis://redis:6379
+  JWT_SECRET: change-me-in-production-jwt-secret
+  DOWNLOAD_TOKEN_SECRET: change-me-in-production-download-secret
+  PUBLIC_BASE_URL: http://localhost:8080
+  WHATSAPP_API_URL: http://mock-whatsapp:4001
+  CERTIFICATE_STORAGE_DIR: /data/certificates
+  QUALITY_REVIEW_THRESHOLD: "50"
+  DISTRICT_APPROVALS_REQUIRED: "2"
+  SLA_MINUTES: "5"
+  LOG_LEVEL: info
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: certiflow
+      POSTGRES_PASSWORD: certiflow
+      POSTGRES_DB: certiflow
+    ports: ["5432:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U certiflow -d certiflow"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    # AOF persistence: BullMQ jobs survive a Redis restart.
+    command: ["redis-server", "--appendonly", "yes"]
+    ports: ["6379:6379"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  # Runs migrations + idempotent demo seed once, then exits.
+  migrate:
+    build: { context: ./backend, target: runtime }
+    environment: *backend-env
+    command: ["sh", "-c", "npx prisma migrate deploy && node dist/prisma/seed.js"]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  api:
+    build: { context: ./backend, target: runtime }
+    environment: *backend-env
+    command: ["node", "dist/src/main.js"]
+    ports: ["3000:3000"]
+    volumes:
+      - certificates:/data/certificates
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # Scale with: docker compose up --scale worker=3
+  worker:
+    build: { context: ./backend, target: runtime }
+    environment: *backend-env
+    command: ["node", "dist/src/worker.js"]
+    volumes:
+      - certificates:/data/certificates
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+
+  # Stand-in for the WhatsApp Business API: fails and times out on purpose.
+  mock-whatsapp:
+    build: { context: ./backend, target: runtime }
+    environment:
+      REDIS_URL: redis://redis:6379
+      MOCK_WHATSAPP_PORT: "4001"
+      MOCK_FAILURE_RATE: "0.2"
+      MOCK_TIMEOUT_RATE: "0.1"
+      MOCK_LOST_RESPONSE_RATE: "0.1"
+    command: ["node", "dist/src/mock-whatsapp/main.js"]
+    ports: ["4001:4001"]
+    depends_on:
+      redis: { condition: service_healthy }
+
+  web:
+    build: { context: ./frontend }
+    ports: ["8080:80"]
+    depends_on:
+      api: { condition: service_healthy }
+
+  # docker compose --profile test run --rm test
+  test:
+    profiles: ["test"]
+    build: { context: ./backend, target: build }
+    environment:
+      <<: *backend-env
+      NODE_ENV: test
+      DATABASE_URL: postgresql://certiflow:certiflow@postgres:5432/certiflow_test?schema=public
+      REDIS_URL: redis://redis:6379/1
+      CERTIFICATE_STORAGE_DIR: /tmp/certificates
+    command: ["sh", "-c", "npx prisma migrate deploy && npx jest --runInBand"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+volumes:
+  pgdata:
+  redisdata:
+  certificates:
