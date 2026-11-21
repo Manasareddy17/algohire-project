@@ -22,6 +22,7 @@ export enum AuditAction {
   BatchStageChanged = 'BATCH_STAGE_CHANGED',
   BatchEscalated = 'BATCH_ESCALATED',
   CertificateIssued = 'CERTIFICATE_ISSUED',
+  CertificateSkippedDuplicate = 'CERTIFICATE_SKIPPED_DUPLICATE',
   CertificateDelivered = 'CERTIFICATE_DELIVERED',
   CertificateDeliveryFailed = 'CERTIFICATE_DELIVERY_FAILED',
   CertificateRevoked = 'CERTIFICATE_REVOKED',

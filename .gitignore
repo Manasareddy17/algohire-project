@@ -5,3 +5,8 @@ coverage/
 *.log
 backend/storage/
 .DS_Store
+
+# Local tool files (Postman app workspace, TypeScript build cache)
+postman/
+.postman/
+*.tsbuildinfo

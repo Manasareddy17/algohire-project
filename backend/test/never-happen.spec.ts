@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { IssueBatchCertificatesCommand } from '../src/certificate/commands/impl';
 import { prisma } from '../src/database';
-import { closeTestContext, createSubmittedBatch, createTestContext, review, TestContext } from './helpers';
+import { candidatesCsv, closeTestContext, createSubmittedBatch, createTestContext, review, TestContext } from './helpers';
 
 /** The "things that must never happen" from the brief. */
 describe('Things that must never happen', () => {
@@ -87,6 +87,103 @@ describe('Things that must never happen', () => {
 
       await expect(
         prisma.certificate.update({ where: { id: second.id }, data: { certificateNo: first.certificateNo } }),
+      ).rejects.toThrow(/Unique constraint/);
+    });
+
+    // Bug: the same file uploaded into a second batch while the first was in review was accepted,
+    // and approving both gave every candidate two certificates.
+    it('refuses to upload candidates who are already in another submitted batch of the course', async () => {
+      const second = await ctx.api
+        .post('/api/batches')
+        .set('Authorization', ctx.token('anika'))
+        .send({ courseCode: 'ELEC-101', courseName: 'Assistant Electrician' });
+
+      const response = await ctx.api
+        .post(`/api/batches/${second.body.id}/candidates`)
+        .set('Authorization', ctx.token('anika'))
+        .attach('file', Buffer.from(candidatesCsv(3)), 'same-file.csv')
+        .expect(422);
+
+      const firstCode = (await prisma.batch.findUniqueOrThrow({ where: { id: batchId } })).code;
+      expect(response.body.errors).toHaveLength(3);
+      expect(response.body.errors[0].message).toBe(`Already in batch ${firstCode} (DISTRICT_REVIEW) for this course`);
+      expect(await prisma.candidate.count({ where: { batchId: second.body.id } })).toBe(0);
+    });
+
+    it('refuses to submit a second draft holding the same candidates', async () => {
+      // Two drafts get the same people (allowed while nothing is submitted)...
+      const createDraft = async () => {
+        const created = await ctx.api
+          .post('/api/batches')
+          .set('Authorization', ctx.token('anika'))
+          .send({ courseCode: 'PLMB-201', courseName: 'Plumber General' });
+        await ctx.api
+          .post(`/api/batches/${created.body.id}/candidates`)
+          .set('Authorization', ctx.token('anika'))
+          .attach('file', Buffer.from(candidatesCsv(2)), 'drafts.csv')
+          .expect(200);
+        return created.body.id as string;
+      };
+      const [draftA, draftB] = [await createDraft(), await createDraft()];
+
+      // ...but only the first one can be submitted.
+      await ctx.api.post(`/api/batches/${draftA}/submit`).set('Authorization', ctx.token('anika')).expect(200);
+      const response = await ctx.api.post(`/api/batches/${draftB}/submit`).set('Authorization', ctx.token('anika')).expect(422);
+
+      expect(response.body.message).toBe('Some candidates are already in another batch for this course');
+      expect((await prisma.batch.findUniqueOrThrow({ where: { id: draftB } })).status).toBe('DRAFT');
+    });
+
+    it('issues one certificate per person even if two approved batches hold the same people', async () => {
+      // Force the situation the checks above prevent: a second APPROVED batch with the same people.
+      const firstCertificates = await approveAndIssueAll();
+      const original = await prisma.batch.findUniqueOrThrow({ where: { id: batchId }, include: { candidates: true } });
+      const duplicate = await prisma.batch.create({
+        data: {
+          code: 'B-DUPLICATE',
+          centreId: original.centreId,
+          courseCode: original.courseCode,
+          courseName: original.courseName,
+          status: 'APPROVED',
+          createdById: original.createdById,
+          candidates: {
+            create: original.candidates.map(({ rowNumber, enrolmentId, name, phone, score }) => ({ rowNumber, enrolmentId, name, phone, score })),
+          },
+        },
+      });
+
+      const result = await ctx.container.commandBus.execute<{ issued: number }>(new IssueBatchCertificatesCommand(duplicate.id));
+
+      expect(result.issued).toBe(0);
+      expect(await prisma.certificate.count({ where: { status: 'ISSUED' } })).toBe(firstCertificates.length);
+      expect(await prisma.auditLog.count({ where: { batchId: duplicate.id, action: 'CERTIFICATE_SKIPPED_DUPLICATE' } })).toBe(3);
+    });
+
+    it('refuses a second valid certificate for the same person and course at the database level', async () => {
+      const [certificate] = await approveAndIssueAll();
+      const other = await prisma.batch.create({
+        data: {
+          code: 'B-OTHER',
+          centreId: ctx.ids.puneCentre,
+          courseCode: 'ELEC-101',
+          courseName: 'Assistant Electrician',
+          status: 'APPROVED',
+          createdById: certificate.revokedById ?? 1,
+          candidates: { create: [{ rowNumber: 2, enrolmentId: certificate.enrolmentId, name: 'Same Person', phone: '+919999999999', score: 80 }] },
+        },
+        include: { candidates: true },
+      });
+
+      await expect(
+        prisma.certificate.create({
+          data: {
+            ...certificate,
+            id: undefined,
+            certificateNo: 'PSM-2026-ZZZZZZZZ',
+            candidateId: other.candidates[0].id,
+            batchId: other.id,
+          },
+        }),
       ).rejects.toThrow(/Unique constraint/);
     });
 
